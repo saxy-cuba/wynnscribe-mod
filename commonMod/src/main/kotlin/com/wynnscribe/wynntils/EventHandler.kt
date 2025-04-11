@@ -5,7 +5,6 @@ import com.wynnscribe.Translator
 import com.wynntils.mc.event.ItemTooltipRenderEvent
 import com.wynntils.mc.extension.ItemStackExtension
 import com.wynntils.models.items.items.game.*
-import com.wynntils.models.items.items.gui.IngredientPouchItem
 import com.wynntils.models.items.items.gui.ServerItem
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
@@ -131,7 +130,6 @@ class EventHandler {
                 event.tooltips = Translator.translateOrCached(event.itemStack, event.tooltips, Component.literal("#wynnscribe.item.rune"), event.tooltips.firstOrNull())
                 return
             }
-
             is TeleportScrollItem -> {
                 // テレポートスクロール
                 event.tooltips = Translator.translateOrCached(event.itemStack, event.tooltips, Component.literal("#wynnscribe.item.teleport-scroll"), event.tooltips.firstOrNull())
@@ -140,11 +138,6 @@ class EventHandler {
             is TomeItem -> {
                 // https://wynncraft.fandom.com/wiki/Mastery_Tomes
                 event.tooltips = Translator.translateOrCached(event.itemStack, event.tooltips, Component.literal("#wynnscribe.item.tome"), event.tooltips.firstOrNull())
-                return
-            }
-            is IngredientPouchItem -> {
-                // 材料ポーチ
-                event.tooltips = Translator.translateOrCached(event.itemStack, event.tooltips, Component.literal("#wynnscribe.gui.ingredient-pouch"), event.tooltips.firstOrNull())
                 return
             }
             is ServerItem -> {

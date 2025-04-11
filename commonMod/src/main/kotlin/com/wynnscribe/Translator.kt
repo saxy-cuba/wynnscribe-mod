@@ -5,6 +5,7 @@ import com.wynnscribe.CachedItemStackTranslation.Companion.setCacheTranslation
 import com.wynnscribe.Translator.FilterValue.Companion.match
 import com.wynnscribe.models.Project
 import com.wynnscribe.models.Project.Original
+import com.wynnscribe.utils.LegacyTagUtils
 import kotlinx.serialization.Serializable
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -61,8 +62,6 @@ object Translator {
             val old = translated
             // 一番投票数が多い翻訳を取得
             val translationText = original.translations.maxByOrNull { it.score }?.text?.value?:original.template?.value?:continue
-            println("===")
-            println(Placeholders.pattern(original, translationData.projects))
             // 文字列を置換する
             translated = Placeholders.pattern(original, translationData.projects).replace(translated, translationText)
             // replaceが動作したかどうか
@@ -121,7 +120,7 @@ object Translator {
                             return false
                         }
                     } else {
-                        if(filter.content != PlainTextComponentSerializer.plainText().serialize(content)) {
+                        if(filter.content != LegacyTagUtils.replaceLegacyTags(PlainTextComponentSerializer.plainText().serialize(content), true)) {
                             return false
                         }
                     }
@@ -131,7 +130,7 @@ object Translator {
                             return false
                         }
                     } else {
-                        if(filter.content !in PlainTextComponentSerializer.plainText().serialize(content)) {
+                        if(filter.content !in LegacyTagUtils.replaceLegacyTags(PlainTextComponentSerializer.plainText().serialize(content), true)) {
                             return false
                         }
                     }

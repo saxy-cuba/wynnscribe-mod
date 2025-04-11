@@ -2,13 +2,11 @@ package com.wynnscribe
 
 import com.google.gson.Gson
 import com.mojang.blaze3d.platform.InputConstants
-import com.wynnscribe.models.Project
 import com.wynnscribe.wynntils.EventHandler
 import com.wynntils.core.WynntilsMod
 import dev.architectury.event.events.client.ClientLifecycleEvent
 import dev.architectury.platform.Platform
 import dev.architectury.registry.ReloadListenerRegistry
-import kotlinx.datetime.Clock
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.minecraft.client.KeyMapping
@@ -30,7 +28,7 @@ object Wynnscribe {
 
     const val MOD_ID = "wynnscribe"
 
-    const val STUDIO_HOST = "http://localhost:5173"
+    const val STUDIO_HOST = "http://192.168.0.7:5173"
 
     val P = KeyMapping("key.wynnscribe.p", InputConstants.Type.KEYSYM, InputConstants.KEY_P, "category.wynnscribe.debug")
     val O = KeyMapping("key.wynnscribe.o", InputConstants.Type.KEYSYM, InputConstants.KEY_O, "category.wynnscribe.debug")

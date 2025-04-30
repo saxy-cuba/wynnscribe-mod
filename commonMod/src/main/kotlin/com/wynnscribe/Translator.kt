@@ -17,7 +17,7 @@ object Translator {
 
     var Translation: TranslationData? = null
 
-    fun translateOrCached(itemStack: ItemStack, original: List<Component>, type: Component?, title: Component?): List<Component> {
+    fun translateItemStackOrCached(itemStack: ItemStack, original: List<Component>, type: Component?, title: Component?): List<Component> {
         if(Translation == null) { return original }
         val content = MiniMessage.serializeList(original.map(MinecraftClientAudiences.of()::asAdventure))
         val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.refreshed)

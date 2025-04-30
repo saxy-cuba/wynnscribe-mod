@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.days
 object API {
     val httpClient = OkHttpClient()
 
-    const val API_HOST = "http://192.168.0.7:8080" // TODO
+    const val API_HOST = "http://100.68.71.16:8080" // TODO
 
     val translationsDir = File("translations")
 

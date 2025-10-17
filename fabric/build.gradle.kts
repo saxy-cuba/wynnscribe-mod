@@ -10,7 +10,9 @@ architectury {
 }
 
 configurations {
-    create("common") {
+    create("common")
+
+    named("common") {
         isCanBeResolved = true
         isCanBeConsumed = false
     }
@@ -24,7 +26,10 @@ configurations {
     named("developmentFabric").configure {
         extendsFrom(configurations["common"])
     }
-    create("shadowBundle") {
+
+    create("shadowBundle")
+
+    named("shadowBundle") {
         isCanBeResolved = true
         isCanBeConsumed = false
     }
@@ -41,7 +46,6 @@ dependencies {
     modImplementation(libs.adventure.platform.fabric)
     implementation(kotlin("stdlib"))
 
-    implementation(libs.wynnscribe.common)
     implementation(libs.adventure.minimessage)
     implementation(libs.adventure.legacy)
     implementation(libs.kotlin.serializationJson)

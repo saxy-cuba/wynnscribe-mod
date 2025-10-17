@@ -2,8 +2,7 @@ package com.wynnscribe
 
 import com.wynnscribe.Placeholder.Companion.TAG_PATTERN
 import com.wynnscribe.Placeholder.ParsedTag
-import com.wynnscribe.models.Project
-import com.wynnscribe.models.Project.Original.Json.Regexes.CompiledPlaceholder
+import com.wynnscribe.schemas.ExportedTranslationSchema
 import com.wynnscribe.utils.escapeGroupingRegex
 import com.wynnscribe.utils.escapeRegex
 import net.kyori.adventure.text.Component
@@ -19,19 +18,19 @@ sealed interface Placeholders {
         /**
          * この翻訳をキーとしてreplaceするためのreplace keyを返します。
          */
-        fun pattern(original: Project.Original.Json, projects: List<Project.Json>): Regex {
-            return returningCompileAll(original, projects, _InternalCompiler).regex!!
+        fun pattern(source: ExportedTranslationSchema.Category.Source, categories: List<ExportedTranslationSchema.Category>): Regex {
+            return returningCompileAll(source, categories, _InternalCompiler).regex!!
         }
 
         /**
          * プレースホルダーの一覧を取得します。
          */
-        fun holders(original: Project.Original.Json, projects: List<Project.Json>): List<CompiledPlaceholder.Holder<*>> {
-            val matches = TAG_PATTERN.findAll(original.text.value)
+        fun holders(source: ExportedTranslationSchema.Category.Source, categories: List<ExportedTranslationSchema.Category>): List<Placeholder.Compiled.Holder<*>> {
+            val matches = TAG_PATTERN.findAll(source.properties.matcher?:return emptyList())
             val tags = matches.map { ParsedTag(it.groupValues[1].split(":", limit = 2)) }
-            val groups = mutableListOf<CompiledPlaceholder.Holder<*>>()
+            val groups = mutableListOf<Placeholder.Compiled.Holder<*>>()
             tags.forEach { tag ->
-                groups.add(entries[tag.key]?.holder(tag, original, projects)?:return@forEach)
+                groups.add(entries[tag.key]?.holder(tag, source, categories)?:return@forEach)
             }
             return groups
         }
@@ -39,11 +38,12 @@ sealed interface Placeholders {
         /**
          * すべてのプレースホルダーをコンパイルします。
          */
-        fun compileAll(original: Project.Original.Json, projects: List<Project.Json>) {
-            val holders = this.holders(original, projects)
-            original.regexes.placeholder(_InternalCompiler) { _InternalCompiler.compile(holders, original) }
+        fun compileAll(source: ExportedTranslationSchema.Category.Source, categories: List<ExportedTranslationSchema.Category>) {
+            val holders = this.holders(source, categories)
+            val regexes = source.regexes ?: return
+            regexes.placeholder(_InternalCompiler) { _InternalCompiler.compile(holders, source) }
             entries.forEach { placeholder ->
-                original.regexes.placeholder(placeholder.value, holders, original)
+                regexes.placeholder(placeholder.value, holders, source)
             }
         }
 
@@ -51,18 +51,18 @@ sealed interface Placeholders {
          * すべてのプレースホルダーをコンパイルします。
          * 更に引数で指定したプレースホルダも返します。
          */
-        fun <T> returningCompileAll(original: Project.Original.Json, projects: List<Project.Json>, placeholder: Placeholder<T>): CompiledPlaceholder<T> {
-            this.compileAll(original, projects)
-            return original.regexes.placeholder(placeholder) { placeholder.compile(holders(original, projects), original) }
+        fun <T> returningCompileAll(source: ExportedTranslationSchema.Category.Source, categories: List<ExportedTranslationSchema.Category>, placeholder: Placeholder<T>): Placeholder.Compiled<T> {
+            this.compileAll(source, categories)
+            return source.regexes?.placeholder(placeholder) { placeholder.compile(holders(source, categories), source) }?: Placeholder.Compiled(null, emptyList())
         }
 
         /**
          * プレースホルダを埋める処理に使います。
          */
-        fun on(translation: String, originalText: String, original: Project.Original.Json, projects: List<Project.Json>): String {
+        fun on(translation: String, sourceText: String, source: ExportedTranslationSchema.Category.Source, categories: List<ExportedTranslationSchema.Category>): String {
             var translated = translation
             entries.values.forEach { placeholder ->
-                translated = placeholder.on(translated, originalText, original, projects)
+                translated = placeholder.on(translated, sourceText, source, categories)
             }
             return translated
         }
@@ -76,21 +76,21 @@ sealed interface Placeholders {
 
         override fun holder(
             tag: ParsedTag,
-            original: Project.Original,
-            projects: List<Project.Json>
-        ): CompiledPlaceholder.Holder<Nothing> {
-            return CompiledPlaceholder.Holder(tag.value!!, this, null)
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
+        ): Placeholder.Compiled.Holder<Nothing> {
+            return Placeholder.Compiled.Holder(tag.value!!, this, null)
         }
 
         override fun on(
             translation: String,
-            originalText: String,
-            original: Project.Original.Json,
-            projects: List<Project.Json>
+            sourceText: String,
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
         ): String {
-            val regex = original.regexes.placeholder<Nothing>(this) { returningCompileAll(original, projects, this) }.regex?:return translation
+            val regex = source.regexes?.placeholder<Nothing>(this) { returningCompileAll(source, categories, this) }?.regex?:return translation
             var translated = translation
-            val matches = regex.findAll(originalText)
+            val matches = regex.findAll(sourceText)
             matches.forEach { match ->
                 match.groupValues.forEachIndexed { index, str ->
                     if(index == 0) return@forEachIndexed
@@ -106,17 +106,17 @@ sealed interface Placeholders {
 
         override fun holder(
             tag: ParsedTag,
-            original: Project.Original,
-            projects: List<Project.Json>
-        ): CompiledPlaceholder.Holder<Nothing> {
-            return CompiledPlaceholder.Holder(Minecraft.getInstance().user.name, this, null)
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
+        ): Placeholder.Compiled.Holder<Nothing> {
+            return Placeholder.Compiled.Holder(Minecraft.getInstance().user.name, this, null)
         }
 
         override fun on(
             translation: String,
-            originalText: String,
-            original: Project.Original.Json,
-            projects: List<Project.Json>
+            sourceText: String,
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
         ): String {
             return translation.replaceFirst("{player}", Minecraft.getInstance().user.name)
         }
@@ -131,29 +131,30 @@ sealed interface Placeholders {
 
         override fun holder(
             tag: ParsedTag,
-            original: Project.Original,
-            projects: List<Project.Json>
-        ): CompiledPlaceholder.Holder<Translator.FilterValue> {
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
+        ): Placeholder.Compiled.Holder<Translator.FilterValue> {
             val project = tag.value!!
+            val filterValue = Translator.FilterValue(mapOf("type" to Component.text(project)))
             // |区切りの値一覧
-            val grouping = Translator.filtered(projects.asSequence(), Translator.FilterValue(Component.text(project), null, null))
-                .mapNotNull { it.regexes.placeholder<Nothing>(_InternalCompiler) { _InternalCompiler.compile(holders(it, projects), it) }.regex?.pattern }
-                .map(::escapeGroupingRegex)
-                .joinToString("|")
-            return CompiledPlaceholder.Holder("(${grouping})", this, Translator.FilterValue(Component.text(project), null, null))
+            val grouping = Translator.filtered(categories, filterValue)
+                .mapNotNull {
+                    it.regexes?.placeholder(_InternalCompiler) { _InternalCompiler.compile(holders(it, categories), it) }?.regex?.pattern
+                }.joinToString("|", transform = ::escapeGroupingRegex)
+            return Placeholder.Compiled.Holder("(${grouping})", this, filterValue)
         }
 
         override fun on(
             translation: String,
-            originalText: String,
-            original: Project.Original.Json,
-            projects: List<Project.Json>
+            sourceText: String,
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
         ): String {
-            val placeholder = original.regexes.placeholder(this) { returningCompileAll(original, projects, this) }
+            val placeholder = source.regexes?.placeholder(this) { returningCompileAll(source, categories, this) }?:return translation
             val holders = placeholder.holders
             val regex = placeholder.regex?:return translation
             var translated = translation
-            val matches = regex.findAll(originalText)
+            val matches = regex.findAll(sourceText)
             matches.forEach { match ->
                 match.groupValues.forEachIndexed { index, str ->
                     if(index == 0) return@forEachIndexed
@@ -172,18 +173,18 @@ sealed interface Placeholders {
 
         override fun holder(
             tag: ParsedTag,
-            original: Project.Original,
-            projects: List<Project.Json>
-        ): CompiledPlaceholder.Holder<Nothing> {
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
+        ): Placeholder.Compiled.Holder<Nothing> {
             // 使われることはないのでエラー
             throw NotImplementedError()
         }
 
         override fun on(
             translation: String,
-            originalText: String,
-            original: Project.Original.Json,
-            projects: List<Project.Json>
+            sourceText: String,
+            source: ExportedTranslationSchema.Category.Source,
+            categories: List<ExportedTranslationSchema.Category>
         ): String {
             // 使われることはないのでエラー
             throw NotImplementedError()
@@ -192,9 +193,9 @@ sealed interface Placeholders {
         /**
          * すべてのグループをエスケープする
          */
-        override fun compile(holders: List<CompiledPlaceholder.Holder<*>>, original: Project.Original.Json): CompiledPlaceholder<Nothing> {
+        override fun compile(holders: List<Placeholder.Compiled.Holder<*>>, source: ExportedTranslationSchema.Category.Source): Placeholder.Compiled<Nothing> {
             val patternStr = buildString {
-                Placeholder.TAG_PATTERN.split(original.text.value).forEachIndexed { index, str ->
+                Placeholder.TAG_PATTERN.split(source.properties.matcher?: return Placeholder.Compiled(null, emptyList())).forEachIndexed { index, str ->
                     append(escapeRegex(str))
                     val group = holders.getOrNull(index)
                     val pattern = group?.pattern
@@ -203,7 +204,7 @@ sealed interface Placeholders {
                     }
                 }
             }
-            return CompiledPlaceholder(patternStr.toRegex(), emptyList())
+            return Placeholder.Compiled(patternStr.toRegex(), emptyList())
         }
     }
 

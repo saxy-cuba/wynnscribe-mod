@@ -41,7 +41,6 @@ dependencies {
     "shadowBundle"(libs.adventure.platform.neoforge)
     implementation(kotlin("stdlib"))
 
-    implementation(libs.wynnscribe.common)
     implementation(libs.adventure.minimessage)
     implementation(libs.adventure.legacy)
     implementation(libs.kotlin.serializationJson)

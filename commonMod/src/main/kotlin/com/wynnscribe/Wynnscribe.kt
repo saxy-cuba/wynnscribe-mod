@@ -71,7 +71,7 @@ object Wynnscribe {
                     Desktop.getDesktop().browse(URI(url))
                 }
             } catch (e: Exception) {
-
+                e.printStackTrace()
             }
         }
 
@@ -93,16 +93,7 @@ object Wynnscribe {
                     return@supplyAsync runCatching { API.loadOrDownloadTranslations(Minecraft.getInstance().languageManager.selected) }
                 },backgroundExecutor)
                 return prepareFuture.thenCompose(state::wait).thenAcceptAsync({ projectsResult ->
-                    val projects = projectsResult.getOrNull()
-                    if(projectsResult != null && projects != null) {
-                        Translator.Translation = Translator.TranslationData(
-                            lang = Minecraft.getInstance().languageManager.selected,
-                            refreshed = System.currentTimeMillis(),
-                            projects = projects
-                        )
-                    } else {
-                        Translator.Translation = null
-                    }
+                    Translator.Translation = projectsResult.getOrNull()
                 }, gameExecutor)
             }
         }, translationResourceLocation)

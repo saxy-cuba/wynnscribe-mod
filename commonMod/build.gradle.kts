@@ -16,10 +16,9 @@ dependencies {
     compileOnly(libs.adventure.platform.shared)
     modCompileOnly(fileTree(mapOf("dir" to "../libs", "include" to listOf("*.jar"))))
 
-    compileOnly(libs.wynnscribe.common)
     compileOnly(libs.adventure.minimessage)
     compileOnly(libs.adventure.legacy)
-    compileOnly(libs.kotlin.serializationJson)
+    implementation(libs.kotlin.serializationJson)
     compileOnly(libs.okhttp)
     compileOnly(libs.kotlinx.datetime)
 }

@@ -2,6 +2,8 @@ package com.wynnscribe.schemas
 
 import com.wynnscribe.Placeholder
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.io.File
 
 @Serializable
 data class ExportedTranslationSchema(
@@ -19,6 +21,8 @@ data class ExportedTranslationSchema(
         val properties: Properties = Properties(),
         val sources: List<Source>
     ) {
+
+        val sourcesWithoutChild: List<Source> by lazy { sources.filter { it.parentId == null } }
 
         @Serializable
         data class Properties(
@@ -72,6 +76,7 @@ data class ExportedTranslationSchema(
                 val filter: Filter? = null,
                 val matcher: String? = null,
                 val stopOnMatch: Boolean = false,
+                val priority: Int = 0,
             )
 
             @Serializable
@@ -82,4 +87,8 @@ data class ExportedTranslationSchema(
             }
         }
     }
+}
+
+fun main() {
+    Json { ignoreUnknownKeys = true }.decodeFromString<ExportedTranslationSchema>(File("test.json").readText())
 }

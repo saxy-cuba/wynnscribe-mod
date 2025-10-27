@@ -1,14 +1,13 @@
 package com.wynnscribe.wynntils
 
 import com.wynnscribe.DeveloperUtils
-import com.wynnscribe.MiniMessage
 import com.wynnscribe.Translator
 import com.wynntils.mc.event.ItemTooltipRenderEvent
 import com.wynntils.mc.extension.ItemStackExtension
 import com.wynntils.models.items.items.game.*
 import com.wynntils.models.items.items.gui.ServerItem
 import com.wynntils.models.npcdialogue.event.NpcDialogueProcessingEvent
-import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
+import net.minecraft.client.Minecraft
 import net.neoforged.bus.api.EventPriority
 import net.neoforged.bus.api.SubscribeEvent
 
@@ -151,26 +150,21 @@ class EventHandler {
         event.tooltips = Translator.translateItemStackOrCached(event.itemStack, event.tooltips, null)
     }
 
-    private val DialogueProgressionRegex = Regex("^<cv1><[^<>\\[\\]]+>\\[(\\d+)/(\\d+)]")
+
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     fun on(event: NpcDialogueProcessingEvent.Pre) {
-        val tags = mapOf(
-            "<!italic><!underlined><!strikethrough><!bold><!obfuscated><font:default>" to "<cv1>",
-            "</font></!obfuscated></!bold></!strikethrough></!underlined></!italic>" to "</cv1>"
-        )
-        var message = MiniMessage.serializeList(event.dialogue.dialogueComponent().map(MinecraftClientAudiences.of()::asAdventure))
-        for ((key, value) in tags) {
-            message = message.replace(key, value)
+
+        if(Minecraft.getInstance().languageManager.selected != "ja_jp") {
+            return // TODO 多言語対応
         }
-        val match = DialogueProgressionRegex.find(message)
-        if(match != null && match.groupValues.size == 3) {
-            val now = match.groupValues[1].toIntOrNull()
-            val total = match.groupValues[2].toIntOrNull()
-            if(now != null && total != null) {
-                println("ああああああああああああああああああああああああああ: ${now}/${total}")
+
+        event.addProcessingStep { future ->
+            future.thenCompose { styledTexts ->
+                return@thenCompose Translator.translateNpcDialogue(styledTexts)
             }
         }
-        println(message)
     }
+
+
 }

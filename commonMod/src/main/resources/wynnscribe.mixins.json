@@ -8,9 +8,12 @@
   },
   "client": [
     "AbstractContainerScreenMixin",
+    "ChatComponentMixin",
     "ScreenMixin"
   ],
   "mixins": [
-    "ItemStackMixin"
+    "ActivityModelMixin",
+    "ItemStackMixin",
+    "TextDisplayMixin"
   ]
 }

@@ -8,7 +8,7 @@
     "saxy_cuba"
   ],
   "contact": {
-    "homepage": "https://cub4.dev"
+    "homepage": "https://x.com/moruch4nn"
   },
   "license": "MIT",
   "icon": "icon.png",
@@ -26,7 +26,8 @@
     "minecraft": "~1.21.4",
     "java": ">=21",
     "architectury": ">=15.0.1",
-    "fabric-api": "*"
+    "fabric-api": "*",
+    "wynntils": ">=3.3.1"
   },
   "suggests": {
     "another-mod": "*"

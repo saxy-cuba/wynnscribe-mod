@@ -1,6 +1,5 @@
 package com.wynnscribe
 
-import com.google.gson.Gson
 import com.mojang.blaze3d.platform.InputConstants
 import com.wynnscribe.wynntils.EventHandler
 import com.wynntils.core.WynntilsMod
@@ -16,11 +15,8 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.PreparableReloadListener
 import net.minecraft.server.packs.resources.ResourceManager
-import java.awt.Desktop
 import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
-import java.net.URI
-import java.net.URLEncoder
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -49,6 +45,7 @@ object Wynnscribe {
 
         KeyMappings.register(O, KeyMappings.RegisterType.INVENTORY) {
             try {
+                Minecraft.getInstance().user?.accessToken
                 val screen = Minecraft.getInstance().screen
                 if (screen is AbstractContainerScreen<*>) {
                     println("================")
@@ -66,9 +63,10 @@ object Wynnscribe {
                     println(lore)
                     println("===")
 
-                    val url = "${STUDIO_HOST}/projects?id=1&withProject=false&defaultOriginalValues=${URLEncoder.encode(Gson().toJson(serialized), "UTF-8")}" // TODO 仮
-                    println(url)
-                    Desktop.getDesktop().browse(URI(url))
+                    val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+                    val selection = StringSelection(lore)
+                    clipboard.setContents(selection, selection)
+                    println("Copied to clipboard")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -93,6 +91,8 @@ object Wynnscribe {
                     return@supplyAsync runCatching { API.loadOrDownloadTranslations(Minecraft.getInstance().languageManager.selected) }
                 },backgroundExecutor)
                 return prepareFuture.thenCompose(state::wait).thenAcceptAsync({ projectsResult ->
+                    Translator.caches.clear()
+                    Translator.history = listOf()
                     Translator.Translation = projectsResult.getOrNull()
                 }, gameExecutor)
             }

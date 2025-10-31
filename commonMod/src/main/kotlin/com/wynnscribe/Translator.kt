@@ -1,14 +1,12 @@
 package com.wynnscribe
 
-import com.wynnscribe.CachedItemStackTranslation.Companion.cachedTranslation
-import com.wynnscribe.CachedItemStackTranslation.Companion.setCacheTranslation
+import com.wynnscribe.api.API
+import com.wynnscribe.mixins.CachedItemStackTranslation.Companion.cachedTranslation
+import com.wynnscribe.mixins.CachedItemStackTranslation.Companion.setCacheTranslation
 import com.wynnscribe.schemas.ExportedTranslationSchema
-import com.wynnscribe.schemas.Filter
+import com.wynnscribe.utils.extractAbilityDescription
 import com.wynntils.core.components.Models
 import com.wynntils.core.text.StyledText
-import com.wynntils.core.text.StyledText.fromComponent
-import kotlinx.serialization.json.Json
-//import com.wynnscribe.Translator.FilterValue.Companion.match
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import net.minecraft.client.Minecraft
@@ -17,6 +15,7 @@ import net.minecraft.world.item.ItemStack
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.map
+import kotlin.concurrent.thread
 
 object Translator {
 
@@ -45,6 +44,7 @@ object Translator {
 
     private val TEXT_DISPLAY_TYPE_MAP = FilterValue(mapOf("type" to net.kyori.adventure.text.Component.text("#wynnscribe.textdisplay")))
     private val CHAT_TYPE_MAP = FilterValue(mapOf("type" to net.kyori.adventure.text.Component.text("#wynnscribe.chat")))
+    private val ABILITY_TYPE_MAP = FilterValue(mapOf("type" to net.kyori.adventure.text.Component.text("#wynnscribe.ability")))
 
     fun translateNpcDialogue(styledTexts: List<StyledText>): CompletableFuture<List<StyledText>> {
         val completableFuture = CompletableFuture<List<StyledText>>()
@@ -82,43 +82,38 @@ object Translator {
 
         CompletableFuture.runAsync {
             try {
-                val requestBody = API.AITranslation.Request(
-                    text = if (light) plain else message,
+                val historyElement: String = if (light) { speaker?.let { "${it}: $plain" } ?: plain } else { plain }
+                this.history = history.take(19) + historyElement
+
+                val body = API.Gemini.TranslateDialogueRequest(
+                    text = if(light) plain else message,
                     plain = plain,
                     speaker = speaker,
                     quest = quest,
-                    type = API.AITranslation.Type.DIALOG,
-                    history = this.history,
                     target = target,
-                    progress = progress
+                    progress = progress,
+                    history = this.history.takeLast(20)
                 )
 
-                var historyElement: String
+                var received = ""
+                var translatedComponent: List<net.kyori.adventure.text.Component>
+                var result: List<StyledText>
 
-                if (light) {
-                    historyElement = speaker?.let { "${it}: $plain" } ?: plain
-                    this.history = history.take(19) + historyElement
-                } else {
-                    historyElement = plain
-                    this.history = history.take(19) + historyElement
-                }
-
-                val response = API.aiTranslation(requestBody)
-
-                if (response != null) {
-                    var translated = response.translated
+                API.Gemini.dialogue(body) { text, done ->
+                    if(text != null) { received += text }
+                    var translated = if(received.count { it == '>' } == received.count { it == '<' }) { received } else { received.take(received.lastIndexOf(">") + 1) }
                     if (light) {
                         translated = message.replace(plain, translated)
                     }
-
-                    val translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
-
-                    val result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
-
-                    this.history = this.history.dropLast(1)
-                    this.history = this.history.takeLast(19) + translatedComponent.joinToString("<br/>", transform = PlainTextSerializer::serialize)
-
-                    completableFuture.complete(result.map(StyledText::fromComponent))
+                    translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+                    result = translatedComponent.map(MinecraftClientAudiences.of()::asNative).map(StyledText::fromComponent)
+                    if(done) {
+                        this.history = this.history.dropLast(1)
+                        this.history = this.history.takeLast(19) + translatedComponent.joinToString("\n", transform = PlainTextSerializer::serialize)
+                        completableFuture.complete(result)
+                    } else {
+                        completableFuture.obtrudeValue(result)
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -131,8 +126,8 @@ object Translator {
 
     fun translateActivity(components: MutableList<Component>) {
         val activity = components.map(MinecraftClientAudiences.of()::asAdventure)
-        var (plain,plainPairs) = Processing.preprocessing(activity.joinToString("\n", transform = PlainTextSerializer::serialize))
-        var (message, messagePairs) = Processing.preprocessing(MiniMessage.serializeList(activity))
+        val (plain,plainPairs) = Processing.preprocessing(activity.joinToString("\n", transform = PlainTextSerializer::serialize))
+        val (message, messagePairs) = Processing.preprocessing(MiniMessage.serializeList(activity))
         var quest: String? = null
         val light = message.endsWith(plain)
         val target = Minecraft.getInstance().languageManager.selected
@@ -140,27 +135,28 @@ object Translator {
             quest = Models.Activity.trackedName
         }
 
-        val requestBody = API.AITranslation.Request(
-            text = if (light) plain else message,
+        val body = API.Gemini.TranslateDialogueRequest(
+            text = if(light) plain else message,
             plain = plain,
             speaker = "Activity",
             quest = quest,
-            type = API.AITranslation.Type.DIALOG,
-            history = emptyList(),
             target = target,
-            progress = null
+            progress = null,
+            history = emptyList()
         )
 
-        val response = API.aiTranslation(requestBody)
+        var received = ""
+        var translatedComponent: List<net.kyori.adventure.text.Component>
+        var result: List<Component>
 
-        if(response != null) {
-            var translated = response.translated
+        API.Gemini.dialogue(body) { text, _ ->
+            if(text != null) { received += text }
+            var translated = if(received.count { it == '>' } == received.count { it == '<' }) received else received.take(received.lastIndexOf(">") + 1)
             if (light) {
                 translated = message.replace(plain, translated)
             }
-            val translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
-
-            val result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
+            translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+            result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
             components.clear()
             components.addAll(result)
         }
@@ -186,9 +182,63 @@ object Translator {
         return MinecraftClientAudiences.of().asNative(MiniMessage.deserialize(Processing.postprocessing(translated, tags)))
     }
 
-    fun translateItemStackOrCached(itemStack: ItemStack, original: List<Component>, type: String?): List<Component> {
-        if(Translation == null) { return original }
-        val content = MiniMessage.serializeList(original.map(MinecraftClientAudiences.of()::asAdventure))
+    @Synchronized
+    fun translateAbilityOrCached(itemStack: ItemStack, source: List<Component>): List<Component> {
+        if(Translation == null) { return source }
+        val content = MiniMessage.serializeList(source.map(MinecraftClientAudiences.of()::asAdventure))
+        val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.at.epochSeconds)
+        if(cached != null) {
+            return cached
+        }
+        if(content.length < 10) {
+            return source
+        }
+        itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, source + Component.empty() + Component.literal("翻訳中..."))
+        var (rawAbilityDescription, rawDescriptionHolders) = extractAbilityDescription(content)
+        var (abilityDescription, descriptionHolders) = Processing.preprocessing(rawAbilityDescription.split("\n").joinToString("\n") { if(it.startsWith("<!italic><dark_purple>")) { it.replaceFirst("<!italic><dark_purple>", "") } else it }, resetPerLines = true, newLineCode = "\n", replaceNumbers = false)
+        descriptionHolders = descriptionHolders + rawDescriptionHolders
+        var translatedDescription = this.translate(abilityDescription, ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
+        if(abilityDescription == translatedDescription) {
+            val body = API.Gemini.TranslateAbilityRequest(
+                text = abilityDescription,
+                plain = null,
+                target = Minecraft.getInstance().languageManager.selected,
+                characterClass = Models.Character.classType.getActualName(false)
+            )
+
+            var received = ""
+
+            thread(start = true) {
+                API.Gemini.ability(body) { text, _ ->
+                    if(text != null) { received += text }
+                    translatedDescription = if(received.count { it == '>' } == received.count { it == '<' }) { received } else { received.take(received.lastIndexOf(">") + 1) }
+
+                    translatedDescription = Processing.postprocessing(translatedDescription, descriptionHolders)
+                    descriptionHolders.forEach { (t, u) ->
+                        rawAbilityDescription = rawAbilityDescription.replace(t, u)
+                        translatedDescription = translatedDescription.replace(t, u)
+                    }
+                    translatedDescription = translatedDescription.split("\n").joinToString("\n") { "<!italic><gray>${it}" }
+                    val translated = this.translate(content.replace(rawAbilityDescription, translatedDescription), ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
+                    itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, translated.split("\n").map(MiniMessage::deserialize).map(MinecraftClientAudiences.of()::asNative))
+                }
+            }
+
+        } else {
+            descriptionHolders.forEach { (t, u) ->
+                rawAbilityDescription = rawAbilityDescription.replace(t, u)
+                translatedDescription = translatedDescription.replace(t, u)
+            }
+            translatedDescription = translatedDescription.split("\n").joinToString("\n") { "<!italic><gray>${it}" }
+            val translated = this.translate(content.replace(rawAbilityDescription, translatedDescription), ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
+            itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, translated.split("\n").map(MiniMessage::deserialize).map(MinecraftClientAudiences.of()::asNative))
+        }
+        return source
+    }
+
+    fun translateItemStackOrCached(itemStack: ItemStack, source: List<Component>, type: String?): List<Component> {
+        if(Translation == null) { return source }
+        val content = MiniMessage.serializeList(source.map(MinecraftClientAudiences.of()::asAdventure))
         val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.at.epochSeconds)
         if(cached != null) {
             // キャッシュがあった場合はそのItemStackを使う
@@ -199,7 +249,7 @@ object Translator {
         if(inventoryName != null) {
             fields["inventoryName"] = MinecraftClientAudiences.of().asAdventure(inventoryName)
         }
-        val displayName = original.firstOrNull()
+        val displayName = source.firstOrNull()
         if(displayName != null) {
             fields["displayName"] = MinecraftClientAudiences.of().asAdventure(displayName)
         }
@@ -226,6 +276,7 @@ object Translator {
 
     fun translate(originalText: String, sources: List<ExportedTranslationSchema.Category.Source>, translationData: API.TranslationData, struct: StructMode): String {
         var translated = originalText
+
         for(source in sources) {
             // 翻訳前の文章を残しておく
             val old = translated

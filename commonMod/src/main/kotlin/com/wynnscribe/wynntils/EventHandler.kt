@@ -1,13 +1,17 @@
 package com.wynnscribe.wynntils
 
 import com.wynnscribe.DeveloperUtils
+import com.wynnscribe.mixins.HasHoveredSlot
+import com.wynnscribe.mixins.HasHoveredSlot.Companion.hoveredSlot
 import com.wynnscribe.Translator
 import com.wynntils.mc.event.ItemTooltipRenderEvent
 import com.wynntils.mc.extension.ItemStackExtension
 import com.wynntils.models.items.items.game.*
 import com.wynntils.models.items.items.gui.ServerItem
 import com.wynntils.models.npcdialogue.event.NpcDialogueProcessingEvent
+import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.player.Inventory
 import net.neoforged.bus.api.EventPriority
 import net.neoforged.bus.api.SubscribeEvent
 
@@ -19,6 +23,21 @@ class EventHandler {
         val extension = event.itemStack as ItemStackExtension
         // annotationはWynntilsによって推定されたアイテムの種類です。
         val annotation = extension.annotation
+        val screen = Minecraft.getInstance().screen
+        if(screen is HasHoveredSlot) {
+            val container = screen.hoveredSlot()?.container
+            if(container !is Inventory) {
+                val inventoryName = screen.title
+                when(Translator.PlainTextSerializer.serialize(MinecraftClientAudiences.of().asAdventure(inventoryName))) {
+                    "\uDAFF\uDFEA\uE000" -> {
+                        event.guiGraphics
+                        event.tooltips = Translator.translateAbilityOrCached(event.itemStack, event.tooltips)
+                        return
+                    }
+                }
+            }
+        }
+
         when(annotation) {
             // >>> 武器や防具だった場合 >>>
             is GearItem -> {

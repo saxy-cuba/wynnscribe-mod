@@ -1,6 +1,6 @@
 package com.wynnscribe.schemas
 
-import com.wynnscribe.Placeholder
+import com.wynnscribe.models.Placeholder
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File

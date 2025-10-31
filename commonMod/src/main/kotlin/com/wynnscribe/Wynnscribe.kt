@@ -1,9 +1,11 @@
 package com.wynnscribe
 
 import com.mojang.blaze3d.platform.InputConstants
+import com.wynnscribe.api.API
 import com.wynnscribe.wynntils.EventHandler
 import com.wynntils.core.WynntilsMod
 import dev.architectury.event.events.client.ClientLifecycleEvent
+import dev.architectury.event.events.client.ClientPlayerEvent
 import dev.architectury.platform.Platform
 import dev.architectury.registry.ReloadListenerRegistry
 import net.kyori.adventure.platform.modcommon.MinecraftClientAudiences
@@ -33,13 +35,10 @@ object Wynnscribe {
         KeyMappings.register(P, KeyMappings.RegisterType.INVENTORY) {
             val screen = Minecraft.getInstance().screen
             if (screen is AbstractContainerScreen<*>) {
-                println("================")
                 val serialized = MiniMessage.miniMessage().serialize(MinecraftClientAudiences.of().asAdventure(Minecraft.getInstance().screen!!.getTitle()))
-                println(serialized)
                 val clipboard = Toolkit.getDefaultToolkit().systemClipboard
                 val selection = StringSelection(serialized)
                 clipboard.setContents(selection, selection)
-                println("Copied to clipboard")
             }
         }
 
@@ -71,6 +70,10 @@ object Wynnscribe {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+
+        ClientPlayerEvent.CLIENT_PLAYER_JOIN.register { event ->
+            API.getAccountToken() // tokenを生成しておく
         }
 
         ClientLifecycleEvent.CLIENT_STARTED.register { server ->

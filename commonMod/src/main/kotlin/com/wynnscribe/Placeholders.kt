@@ -1,7 +1,8 @@
 package com.wynnscribe
 
-import com.wynnscribe.Placeholder.Companion.TAG_PATTERN
-import com.wynnscribe.Placeholder.ParsedTag
+import com.wynnscribe.models.Placeholder
+import com.wynnscribe.models.Placeholder.Companion.TAG_PATTERN
+import com.wynnscribe.models.Placeholder.ParsedTag
 import com.wynnscribe.schemas.ExportedTranslationSchema
 import com.wynnscribe.utils.escapeGroupingRegex
 import com.wynnscribe.utils.escapeRegex

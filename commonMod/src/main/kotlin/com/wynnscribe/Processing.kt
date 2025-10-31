@@ -15,7 +15,7 @@ object Processing {
 
     val GROUPING_TAG_REGEX = Regex("(</[^>]+>)|(<[^/].*?>)|([^<]+)")
 
-    fun preprocessing(message: String, resetPerLines: Boolean = true, newLineCode: String = "<br/>"): Pair<String, Map<String, String>> {
+    fun preprocessing(message: String, resetPerLines: Boolean = true, newLineCode: String = "\n", replaceNumbers: Boolean = true): Pair<String, Map<String, String>> {
         val matchedPairs = mutableMapOf<String, String>()
         var msg = message.replace(Minecraft.getInstance().user?.name?:"", "{playername}")
         val progress = DIALOGUE_PROGRESS_REGEX.find(msg)?.groupValues?.getOrNull(1)
@@ -28,12 +28,14 @@ object Processing {
             matchedPairs["<click:${clickTagCounter}>"] = matchResult.value
         }
 
-        var textCounter = 0
-        msg = EXTRACT_NUMBERS_REGEX.replace(msg) { matchResult ->
-            val group1Value = matchResult.groupValues[1]
-            group1Value.ifEmpty {
-                matchedPairs["{${++textCounter}}"] = matchResult.value
-                "{$textCounter}"
+        if(replaceNumbers) {
+            var textCounter = 0
+            msg = EXTRACT_NUMBERS_REGEX.replace(msg) { matchResult ->
+                val group1Value = matchResult.groupValues[1]
+                group1Value.ifEmpty {
+                    matchedPairs["{${++textCounter}}"] = matchResult.value
+                    "{$textCounter}"
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-package com.wynnscribe
+package com.wynnscribe.mixins
 
 import net.minecraft.network.chat.Component
 

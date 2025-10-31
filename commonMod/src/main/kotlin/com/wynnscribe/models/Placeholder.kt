@@ -1,5 +1,6 @@
-package com.wynnscribe
+package com.wynnscribe.models
 
+import com.wynnscribe.Translator
 import com.wynnscribe.schemas.ExportedTranslationSchema
 import com.wynnscribe.utils.escapeGroupingRegex
 import com.wynnscribe.utils.escapeRegex
@@ -25,7 +26,7 @@ interface Placeholder<T> {
         if(matcher == null || "{${tag}" !in matcher) { return Compiled(null, emptyList()) }
         val myHolders = mutableListOf<Compiled.Holder<T>>()
         val patternStr = buildString {
-            Placeholder.TAG_PATTERN.split(matcher).forEachIndexed { index, str ->
+            TAG_PATTERN.split(matcher).forEachIndexed { index, str ->
                 append(escapeRegex(str))
                 val holder = holders.getOrNull(index)
                 val pattern = holder?.pattern

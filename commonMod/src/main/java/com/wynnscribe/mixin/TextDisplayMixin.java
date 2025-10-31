@@ -1,8 +1,8 @@
 package com.wynnscribe.mixin;
 
-import com.wynnscribe.API;
-import com.wynnscribe.Translatable;
+import com.wynnscribe.api.API;
 import com.wynnscribe.Translator;
+import com.wynnscribe.mixins.Translatable;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Display;
 import org.jetbrains.annotations.NotNull;

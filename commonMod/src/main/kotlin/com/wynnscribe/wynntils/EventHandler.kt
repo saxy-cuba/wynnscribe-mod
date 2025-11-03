@@ -1,5 +1,6 @@
 package com.wynnscribe.wynntils
 
+import com.wynnscribe.Config
 import com.wynnscribe.DeveloperUtils
 import com.wynnscribe.mixins.HasHoveredSlot
 import com.wynnscribe.mixins.HasHoveredSlot.Companion.hoveredSlot
@@ -18,6 +19,7 @@ import net.neoforged.bus.api.SubscribeEvent
 class EventHandler {
     @SubscribeEvent(receiveCanceled = true, priority = EventPriority.LOW)
     fun on(event: ItemTooltipRenderEvent.Pre) {
+        if(!Config.enabled) { return }
         DeveloperUtils.lastHoveredLore = event.tooltips
         // ItemStackのWynntilsの形式に変更
         val extension = event.itemStack as ItemStackExtension

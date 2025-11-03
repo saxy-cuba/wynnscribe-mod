@@ -1,5 +1,6 @@
 package com.wynnscribe.mixin;
 
+import com.wynnscribe.Config;
 import com.wynnscribe.api.API;
 import com.wynnscribe.Translator;
 import com.wynnscribe.mixins.Translatable;
@@ -19,6 +20,7 @@ import java.util.Objects;
 public class TextDisplayMixin implements Translatable {
     @Inject(method = "getText", at = @At("RETURN"), cancellable = true)
     private void getText(CallbackInfoReturnable<Component> cir) {
+        if(!Config.INSTANCE.getEnabled()) { return; }
         cir.setReturnValue(this.wynnscribeKt$getTranslatedText(cir.getReturnValue()));
     }
 

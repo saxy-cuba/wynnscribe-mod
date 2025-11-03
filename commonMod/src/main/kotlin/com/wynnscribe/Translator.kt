@@ -60,8 +60,6 @@ object Translator {
         val target = Minecraft.getInstance().languageManager.selected
         val progress = messagePairs["{progress}"]
 
-        val cacheId = "${target}:${"dialog"}:${speaker?:"none"}:${progress?:"none"}:${sha256(message)}"
-
         if(groupValues != null) {
             speaker = groupValues[1]
             plain = groupValues[2]
@@ -69,6 +67,8 @@ object Translator {
         if(Models.Activity.isTracking) {
             quest = Models.Activity.trackedName
         }
+
+        val cacheId = "${target}:${"dialog"}:${speaker?:"none"}:${progress?:"none"}:${sha256(message)}"
 
         val cached = caches[cacheId]
 
@@ -79,6 +79,16 @@ object Translator {
         }
 
         val light = message.endsWith(plain)
+
+        val key = "dialogue:${progress?.lowercase()?:"none"}:${speaker?.lowercase()?:"none"}:${sha256(if(light) plain else message)}"
+
+        val filterValue = FilterValue(
+            mapOf(
+                "type" to net.kyori.adventure.text.Component.text("#wynnscribe.ability"),
+                "dialog_key" to net.kyori.adventure.text.Component.text(key)
+            )
+        )
+        this.translate(if(light) plain else message, filterValue, struct = StructMode.StructCategory)
 
         CompletableFuture.runAsync {
             try {
@@ -135,6 +145,10 @@ object Translator {
             quest = Models.Activity.trackedName
         }
 
+        val key = "dialogue:none:activity:${sha256(if(light) plain else message)}"
+
+        val translated = this.translate(if(light) plain else message, ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
+
         val body = API.Gemini.TranslateDialogueRequest(
             text = if(light) plain else message,
             plain = plain,
@@ -184,6 +198,7 @@ object Translator {
 
     @Synchronized
     fun translateAbilityOrCached(itemStack: ItemStack, source: List<Component>): List<Component> {
+        if(!Config.AI_ENABLED) { return source }
         if(Translation == null) { return source }
         val content = MiniMessage.serializeList(source.map(MinecraftClientAudiences.of()::asAdventure))
         val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.at.epochSeconds)

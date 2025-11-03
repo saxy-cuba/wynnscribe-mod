@@ -1,5 +1,6 @@
 package com.wynnscribe.api
 
+import com.wynnscribe.Config
 import com.wynnscribe.schemas.ExportedTranslationSchema
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -132,13 +133,9 @@ object API {
 
                 override fun onResponse(call: Call, response: Response) {
                     if(!response.isSuccessful) {
-                        println(response)
-                        println("ストリーム失敗！！！")
-                        println(response.body?.string())
                         response.close()
                         return
                     }
-                    println("ストリーム開始！！！: ${System.currentTimeMillis() - start}ms")
                     val contentType = response.header("Content-Type")
                     if(contentType != null && contentType.startsWith("text/event-stream")) {
                         response.use { response ->

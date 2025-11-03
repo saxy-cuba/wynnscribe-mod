@@ -1,9 +1,7 @@
 package com.wynnscribe
 
 import com.wynnscribe.KeyMappings.RegisterType.*
-import dev.architectury.event.events.client.ClientTickEvent
 import net.minecraft.client.KeyMapping
-import net.minecraft.client.Minecraft
 import java.util.function.Consumer
 
 object KeyMappings {
@@ -21,7 +19,7 @@ object KeyMappings {
         }
     }
 
-    private val defaultMappings = ArrayList<RegisteredKeyMapping?>()
+    val defaultMappings = ArrayList<RegisteredKeyMapping?>()
 
     private val inventoryMappings = ArrayList<RegisteredKeyMapping?>()
 
@@ -46,15 +44,5 @@ object KeyMappings {
     enum class RegisterType {
         DEFAULT,
         INVENTORY
-    }
-
-    init {
-        ClientTickEvent.CLIENT_POST.register { client ->
-            this.defaultMappings.forEach(Consumer { keyMapping: RegisteredKeyMapping? ->
-                if (keyMapping!!.consumeClick()) {
-                    keyMapping.run()
-                }
-            })
-        }
     }
 }

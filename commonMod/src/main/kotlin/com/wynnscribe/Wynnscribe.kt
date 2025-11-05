@@ -31,25 +31,12 @@ object Wynnscribe {
             try {
                 val screen = Minecraft.getInstance().screen
                 if (screen is AbstractContainerScreen<*>) {
-                    println("================")
                     val lore = DeveloperUtils.lastHoveredLore.map(MinecraftClientAudiences.of()::asAdventure)
                         .joinToString("\n", transform = com.wynnscribe.MiniMessage::serialize)
-                    val serialized = mapOf("text" to lore, "filter.title.content" to lore.split("\n").first())
-
-                    println("---")
-                    println(
-                        DeveloperUtils.lastHoveredLore.map(MinecraftClientAudiences.of()::asAdventure)
-                            .joinToString("\n", transform = MiniMessage.miniMessage()::serialize)
-                    )
-
-                    println("===")
-                    println(lore)
-                    println("===")
 
                     val clipboard = Toolkit.getDefaultToolkit().systemClipboard
                     val selection = StringSelection(lore)
                     clipboard.setContents(selection, selection)
-                    println("Copied to clipboard")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

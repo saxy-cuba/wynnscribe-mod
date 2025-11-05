@@ -82,7 +82,7 @@ val generateConfigTrue = tasks.register("generateConfigTrue") {
     group = "build"
     description = "Generates config.properties with AI_ENABLED=true"
 
-    val propsFile = project.layout.buildDirectory.file("generated-resources/true/config.properties")
+    val propsFile = project.layout.buildDirectory.file("generated-resources/true/wynnscribe.config.properties")
     outputs.file(propsFile)
 
     doLast {
@@ -102,7 +102,7 @@ val generateConfigFalse = tasks.register("generateConfigFalse") {
     group = "build"
     description = "Generates config.properties with AI_ENABLED=false"
 
-    val propsFile = project.layout.buildDirectory.file("generated-resources/false/config.properties")
+    val propsFile = project.layout.buildDirectory.file("generated-resources/false/wynnscribe.config.properties")
     outputs.file(propsFile)
 
     doLast {

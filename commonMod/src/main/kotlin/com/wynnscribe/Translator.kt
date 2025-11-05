@@ -58,7 +58,7 @@ object Translator {
         var speaker: String? = null
         var quest: String? = null
         val target = Minecraft.getInstance().languageManager.selected
-        val progress = messagePairs["{progress}"]
+        val progress = messagePairs["{progress}"]?.ifBlank { null }?.ifEmpty { null }
 
         if(groupValues != null) {
             speaker = groupValues[1]
@@ -70,64 +70,79 @@ object Translator {
 
         val cacheId = "${target}:${"dialog"}:${speaker?:"none"}:${progress?:"none"}:${sha256(message)}"
 
-        val cached = caches[cacheId]
+        val cached = this.caches[cacheId]
 
         if(cached != null) {
             return cached
         } else {
-            caches[cacheId] = completableFuture
+            this.caches[cacheId] = completableFuture
         }
 
         val light = message.endsWith(plain)
 
-        val key = "dialogue:${progress?.lowercase()?:"none"}:${speaker?.lowercase()?:"none"}:${sha256(if(light) plain else message)}"
+        val key = "dialogue:${progress?.lowercase()?:"none"}:${speaker?.lowercase()?:"none"}:${sha256(if(light) plain else message).lowercase()}"
 
         val filterValue = FilterValue(
             mapOf(
-                "type" to net.kyori.adventure.text.Component.text("#wynnscribe.ability"),
+                "type" to net.kyori.adventure.text.Component.text("#wynnscribe.dialog"),
                 "dialog_key" to net.kyori.adventure.text.Component.text(key)
             )
         )
-        this.translate(if(light) plain else message, filterValue, struct = StructMode.StructCategory)
+        var translated = this.translate(if(light) plain else message, filterValue, struct = StructMode.StructCategory)
+        if(translated != if(light) plain else message) {
+            if (light) {
+                translated = message.replace(plain, translated)
+            }
+            val translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+            val result = translatedComponent.map(MinecraftClientAudiences.of()::asNative).map(StyledText::fromComponent)
+            completableFuture.complete(result)
+            return completableFuture
+        } else {
 
-        CompletableFuture.runAsync {
-            try {
-                val historyElement: String = if (light) { speaker?.let { "${it}: $plain" } ?: plain } else { plain }
-                this.history = history.take(19) + historyElement
-
-                val body = API.Gemini.TranslateDialogueRequest(
-                    text = if(light) plain else message,
-                    plain = plain,
-                    speaker = speaker,
-                    quest = quest,
-                    target = target,
-                    progress = progress,
-                    history = this.history.takeLast(20)
-                )
-
-                var received = ""
-                var translatedComponent: List<net.kyori.adventure.text.Component>
-                var result: List<StyledText>
-
-                API.Gemini.dialogue(body) { text, done ->
-                    if(text != null) { received += text }
-                    var translated = if(received.count { it == '>' } == received.count { it == '<' }) { received } else { received.take(received.lastIndexOf(">") + 1) }
-                    if (light) {
-                        translated = message.replace(plain, translated)
-                    }
-                    translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
-                    result = translatedComponent.map(MinecraftClientAudiences.of()::asNative).map(StyledText::fromComponent)
-                    if(done) {
-                        this.history = this.history.dropLast(1)
-                        this.history = this.history.takeLast(19) + translatedComponent.joinToString("\n", transform = PlainTextSerializer::serialize)
-                        completableFuture.complete(result)
-                    } else {
-                        completableFuture.obtrudeValue(result)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            if(!Config.AI_ENABLED) {
                 completableFuture.complete(styledTexts)
+                return completableFuture
+            }
+
+            CompletableFuture.runAsync {
+                try {
+                    val historyElement: String = if (light) { speaker?.let { "${it}: $plain" } ?: plain } else { plain }
+                    this.history = history.take(19) + historyElement
+
+                    val body = API.Gemini.TranslateDialogueRequest(
+                        text = if(light) plain else message,
+                        plain = plain,
+                        speaker = speaker,
+                        quest = quest,
+                        target = target,
+                        progress = progress,
+                        history = this.history.takeLast(20)
+                    )
+
+                    var received = ""
+                    var translatedComponent: List<net.kyori.adventure.text.Component>
+                    var result: List<StyledText>
+
+                    API.Gemini.dialogue(body) { text, done ->
+                        if(text != null) { received += text }
+                        var translated = if(received.count { it == '>' } == received.count { it == '<' }) { received } else { received.take(received.lastIndexOf(">") + 1) }
+                        if (light) {
+                            translated = message.replace(plain, translated)
+                        }
+                        translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+                        result = translatedComponent.map(MinecraftClientAudiences.of()::asNative).map(StyledText::fromComponent)
+                        if(done) {
+                            this.history = this.history.dropLast(1)
+                            this.history = this.history.takeLast(19) + translatedComponent.joinToString("\n", transform = PlainTextSerializer::serialize)
+                            completableFuture.complete(result)
+                        } else {
+                            completableFuture.obtrudeValue(result)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    completableFuture.complete(styledTexts)
+                }
             }
         }
 
@@ -145,39 +160,56 @@ object Translator {
             quest = Models.Activity.trackedName
         }
 
-        val key = "dialogue:none:activity:${sha256(if(light) plain else message)}"
+        val key = "dialogue:${"none"}:${"activity"}:${sha256(if(light) plain else message).lowercase()}"
 
-        val translated = this.translate(if(light) plain else message, ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
-
-        val body = API.Gemini.TranslateDialogueRequest(
-            text = if(light) plain else message,
-            plain = plain,
-            speaker = "Activity",
-            quest = quest,
-            target = target,
-            progress = null,
-            history = emptyList()
+        val filterValue = FilterValue(
+            mapOf(
+                "type" to net.kyori.adventure.text.Component.text("#wynnscribe.dialog"),
+                "dialog_key" to net.kyori.adventure.text.Component.text(key)
+            )
         )
+        var translated = this.translate(if(light) plain else message, filterValue, struct = StructMode.StructCategory)
 
-        var received = ""
-        var translatedComponent: List<net.kyori.adventure.text.Component>
-        var result: List<Component>
-
-        API.Gemini.dialogue(body) { text, _ ->
-            if(text != null) { received += text }
-            var translated = if(received.count { it == '>' } == received.count { it == '<' }) received else received.take(received.lastIndexOf(">") + 1)
+        if(translated != if(light) plain else message) {
             if (light) {
                 translated = message.replace(plain, translated)
             }
-            translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
-            result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
+            val translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+            val result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
             components.clear()
             components.addAll(result)
+        } else {
+            if(!Config.AI_ENABLED) { return }
+            val body = API.Gemini.TranslateDialogueRequest(
+                text = if(light) plain else message,
+                plain = plain,
+                speaker = "Activity",
+                quest = quest,
+                target = target,
+                progress = null,
+                history = emptyList()
+            )
+
+            var received = ""
+            var translatedComponent: List<net.kyori.adventure.text.Component>
+            var result: List<Component>
+
+            API.Gemini.dialogue(body) { text, _ ->
+                if(text != null) { received += text }
+                var translated = if(received.count { it == '>' } == received.count { it == '<' }) received else received.take(received.lastIndexOf(">") + 1)
+                if (light) {
+                    translated = message.replace(plain, translated)
+                }
+                translatedComponent = Processing.postprocessing(translated, messagePairs).split("\n").map(MiniMessage::deserialize)
+                result = translatedComponent.map(MinecraftClientAudiences.of()::asNative)
+                components.clear()
+                components.addAll(result)
+            }
         }
     }
 
     fun translateTextDisplay(component: Component): Component {
-        if(Translation == null) { return component }
+        if(!API.isLoaded()) { return component }
         val text = MiniMessage.serialize(MinecraftClientAudiences.of().asAdventure(component))
         if(text.isEmpty()) return component
 //        println("テキストディスプレイ！！！")
@@ -187,19 +219,17 @@ object Translator {
     }
 
     fun translateChat(component: Component): Component {
-        if(Translation == null) { return component }
+        if(!API.isLoaded()) { return component }
         val (text, tags) = Processing.preprocessing(MiniMessage.serialize(MinecraftClientAudiences.of().asAdventure(component)), resetPerLines = false, newLineCode = "\n")
         if(text.isEmpty()) return component
-        println("チャット！！！ ==== ")
-        println(text)
+//        println("チャット！！！ ==== ")
+//        println(text)
         val translated = this.translate(text, CHAT_TYPE_MAP, struct = StructMode.StructCategory)
         return MinecraftClientAudiences.of().asNative(MiniMessage.deserialize(Processing.postprocessing(translated, tags)))
     }
 
     @Synchronized
     fun translateAbilityOrCached(itemStack: ItemStack, source: List<Component>): List<Component> {
-        if(!Config.AI_ENABLED) { return source }
-        if(Translation == null) { return source }
         val content = MiniMessage.serializeList(source.map(MinecraftClientAudiences.of()::asAdventure))
         val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.at.epochSeconds)
         if(cached != null) {
@@ -213,7 +243,20 @@ object Translator {
         var (abilityDescription, descriptionHolders) = Processing.preprocessing(rawAbilityDescription.split("\n").joinToString("\n") { if(it.startsWith("<!italic><dark_purple>")) { it.replaceFirst("<!italic><dark_purple>", "") } else it }, resetPerLines = true, newLineCode = "\n", replaceNumbers = false)
         descriptionHolders = descriptionHolders + rawDescriptionHolders
         var translatedDescription = this.translate(abilityDescription, ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
-        if(abilityDescription == translatedDescription) {
+        if(abilityDescription != translatedDescription) {
+            descriptionHolders.forEach { (t, u) ->
+                rawAbilityDescription = rawAbilityDescription.replace(t, u)
+                translatedDescription = translatedDescription.replace(t, u)
+            }
+            translatedDescription = translatedDescription.split("\n").joinToString("\n") { "<!italic><gray>${it}" }
+            val translated = this.translate(content.replace(rawAbilityDescription, translatedDescription), ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
+            itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, translated.split("\n").map(MiniMessage::deserialize).map(MinecraftClientAudiences.of()::asNative))
+        } else {
+            if(!Config.AI_ENABLED) {
+                itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, source)
+                return source
+            }
+
             val body = API.Gemini.TranslateAbilityRequest(
                 text = abilityDescription,
                 plain = null,
@@ -238,21 +281,12 @@ object Translator {
                     itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, translated.split("\n").map(MiniMessage::deserialize).map(MinecraftClientAudiences.of()::asNative))
                 }
             }
-
-        } else {
-            descriptionHolders.forEach { (t, u) ->
-                rawAbilityDescription = rawAbilityDescription.replace(t, u)
-                translatedDescription = translatedDescription.replace(t, u)
-            }
-            translatedDescription = translatedDescription.split("\n").joinToString("\n") { "<!italic><gray>${it}" }
-            val translated = this.translate(content.replace(rawAbilityDescription, translatedDescription), ABILITY_TYPE_MAP, struct = StructMode.StructCategory)
-            itemStack.setCacheTranslation(content, Translation!!.at.epochSeconds, translated.split("\n").map(MiniMessage::deserialize).map(MinecraftClientAudiences.of()::asNative))
         }
         return source
     }
 
     fun translateItemStackOrCached(itemStack: ItemStack, source: List<Component>, type: String?): List<Component> {
-        if(Translation == null) { return source }
+        if(!API.isLoaded()) { return source }
         val content = MiniMessage.serializeList(source.map(MinecraftClientAudiences.of()::asAdventure))
         val cached = itemStack.cachedTranslation(content, refreshed = Translation!!.at.epochSeconds)
         if(cached != null) {
@@ -298,7 +332,23 @@ object Translator {
             // 一番投票数が多い翻訳を取得
             val translationText = source.best?.text?:source.text
             // 文字列を置換する
-            translated = Placeholders.pattern(source, translationData.categories, struct = struct)?.replace(translated, translationText)?:translated.replace(source.text, translationText)
+            try {
+                translated = Placeholders.pattern(source, translationData.categories, struct = struct)?.replace(translated, translationText)?:if(source.text.isBlank()) translated  else translated.replace(source.text, translationText)
+            } catch (e: Exception) {
+                println("===")
+                println(translated)
+                println(source)
+                println(Placeholders.pattern(source, translationData.categories, struct = struct))
+                e.printStackTrace()
+            } catch (e: OutOfMemoryError) {
+                println("=== いいい ===")
+                println(translated)
+                println("=== ううう ===")
+                println(source)
+                println("=== えええ ===")
+                println(Placeholders.pattern(source, translationData.categories, struct = struct))
+                e.printStackTrace()
+            }
             // replaceが動作したかどうか
             if(old != translated) {
                 // プレースホルダ関連を処理

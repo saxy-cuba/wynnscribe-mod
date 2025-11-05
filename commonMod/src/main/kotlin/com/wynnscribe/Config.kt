@@ -14,10 +14,10 @@ object Config {
         var aiFlag = false
 
         try {
-            val stream = javaClass.classLoader.getResourceAsStream("config.properties")
+            val stream = javaClass.classLoader.getResourceAsStream("wynnscribe.config.properties")
             if(stream != null) {
                 stream.use { props.load(it) }
-                aiFlag = props.getProperty("AI_ENABLED", "false").toBoolean()
+                aiFlag = props.getProperty("AI_ENABLED", "false").toBooleanStrictOrNull()?:false
             }
         } catch (e: Exception) {
             e.printStackTrace()

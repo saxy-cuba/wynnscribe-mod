@@ -32,6 +32,13 @@ public class WynnscribeFabric implements ClientModInitializer {
 
         ClientPlayConnectionEvents.JOIN.register((listener, sender, minecraft) -> {
             API.INSTANCE.getAccountToken();
+            try {
+                if(!API.INSTANCE.isLoaded()) {
+                    Minecraft.getInstance().reloadResourcePacks();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {

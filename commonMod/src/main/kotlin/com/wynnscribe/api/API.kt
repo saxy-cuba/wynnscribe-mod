@@ -1,6 +1,7 @@
 package com.wynnscribe.api
 
 import com.wynnscribe.Config
+import com.wynnscribe.Translator
 import com.wynnscribe.schemas.ExportedTranslationSchema
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -43,11 +44,15 @@ object API {
     private var accountToken: String? = null
     private var expiresAt: Instant = Clock.System.now()
 
+    fun isLoaded(): Boolean {
+        return Translator.Translation != null
+    }
+
     fun loadOrDownloadTranslations(language: String): TranslationData? {
         val file = translationsDir.resolve("${language}.json")
         if(file.exists()) {
             val cached = json.decodeFromString<TranslationData>(file.readText())
-            if(cached.at > Clock.System.now().minus(1.hours)) { return cached }
+            if(cached.at > Clock.System.now().minus(3.hours)) { return cached }
         }
         val downloaded = downloadTranslations(language) ?: return null
         if(!translationsDir.exists()) { translationsDir.mkdirs() }
@@ -125,7 +130,6 @@ object API {
 
         fun requestStream(request: Request, on: (data: String?, done: Boolean) -> Unit) {
             val start = System.currentTimeMillis()
-            println("翻訳開始！！！")
             httpClient.newCall(request).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     e.printStackTrace()
@@ -149,13 +153,11 @@ object API {
                                         line.startsWith("data:") -> {
                                             val data = line.removePrefix("data: ")
                                             val serialized = json.decodeFromString<SSEBody>(data)
-                                            println(data)
                                             on(serialized.text, serialized.done)
                                             if(serialized.done) break
                                         }
                                     }
                                 }
-                                println("完了！！！: ${System.currentTimeMillis() - start}ms")
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }
@@ -175,7 +177,7 @@ object API {
     }
 
     fun downloadTranslations(language: String): ExportedTranslationSchema? {
-        val request = Request.Builder().url("https://storage.wynnscribe.com/${language}.json").get().build()
+        val request = Request.Builder().url("https://api.wynnscribe.com/api/v1/downloads/${language}.json").header("x-minecraft-authorization", getAccountToken()?:return null).get().build()
         val response = httpClient.newCall(request).execute()
         if(response.isSuccessful) {
             val body = response.body?.string()

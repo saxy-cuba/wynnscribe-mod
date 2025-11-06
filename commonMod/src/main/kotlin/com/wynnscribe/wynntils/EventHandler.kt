@@ -29,15 +29,16 @@ class EventHandler {
         val annotation = extension.annotation
         val screen = Minecraft.getInstance().screen
         if(screen is HasHoveredSlot) {
-            val container = screen.hoveredSlot()?.container
-            if(container !is Inventory) {
-                val inventoryName = screen.title
-                when(Translator.PlainTextSerializer.serialize(MinecraftClientAudiences.of().asAdventure(inventoryName))) {
-                    "\uDAFF\uDFEA\uE000" -> {
-                        event.guiGraphics
+            val inventoryName = screen.title
+            when(Translator.PlainTextSerializer.serialize(MinecraftClientAudiences.of().asAdventure(inventoryName))) {
+                "\uDAFF\uDFEA\uE000" -> {
+                    val container = screen.hoveredSlot()?.container
+                    if(container is Inventory) {
+                        event.tooltips = Translator.translateItemStackOrCached(event.itemStack, event.tooltips, "#wynnscribe.ability")
+                    } else {
                         event.tooltips = Translator.translateAbilityOrCached(event.itemStack, event.tooltips)
-                        return
                     }
+                    return
                 }
             }
         }

@@ -42,7 +42,7 @@ public class TextDisplayMixin implements Translatable {
             boolean isOld = this.wynnscribeKt$refreshed != translation.getAt().getEpochSeconds();
             if(this.wynnscribeKt$cached == null || isOld || this.old != component) {
                 this.wynnscribeKt$cached = Translator.INSTANCE.translateTextDisplay(component);
-                this.wynnscribeKt$refreshed = Objects.requireNonNull(Translator.INSTANCE.getTranslation()).getAt().getEpochSeconds();
+                this.wynnscribeKt$refreshed = translation.getAt().getEpochSeconds();
             }
         } else {
             return component;

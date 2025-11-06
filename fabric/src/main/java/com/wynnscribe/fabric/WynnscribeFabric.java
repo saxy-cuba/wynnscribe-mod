@@ -1,9 +1,6 @@
 package com.wynnscribe.fabric;
 
-import com.wynnscribe.Config;
-import com.wynnscribe.KeyMappings;
-import com.wynnscribe.Translator;
-import com.wynnscribe.Wynnscribe;
+import com.wynnscribe.*;
 import com.wynnscribe.api.API;
 import com.wynnscribe.wynntils.EventHandler;
 import com.wynntils.core.WynntilsMod;
@@ -31,7 +28,7 @@ public class WynnscribeFabric implements ClientModInitializer {
         Wynnscribe.INSTANCE.init();
 
         ClientPlayConnectionEvents.JOIN.register((listener, sender, minecraft) -> {
-            API.INSTANCE.getAccountToken();
+            ThreadExecutorsKt.getThreadExecutors().execute(API.INSTANCE::getAccountToken);
             try {
                 if(!API.INSTANCE.isLoaded()) {
                     Minecraft.getInstance().reloadResourcePacks();

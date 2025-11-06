@@ -266,7 +266,7 @@ object Translator {
 
             var received = ""
 
-            thread(start = true) {
+            ThreadExecutors.execute {
                 API.Gemini.ability(body) { text, _ ->
                     if(text != null) { received += text }
                     translatedDescription = if(received.count { it == '>' } == received.count { it == '<' }) { received } else { received.take(received.lastIndexOf(">") + 1) }
@@ -335,18 +335,8 @@ object Translator {
             try {
                 translated = Placeholders.pattern(source, translationData.categories, struct = struct)?.replace(translated, translationText)?:if(source.text.isBlank()) translated  else translated.replace(source.text, translationText)
             } catch (e: Exception) {
-                println("===")
-                println(translated)
-                println(source)
-                println(Placeholders.pattern(source, translationData.categories, struct = struct))
                 e.printStackTrace()
             } catch (e: OutOfMemoryError) {
-                println("=== いいい ===")
-                println(translated)
-                println("=== ううう ===")
-                println(source)
-                println("=== えええ ===")
-                println(Placeholders.pattern(source, translationData.categories, struct = struct))
                 e.printStackTrace()
             }
             // replaceが動作したかどうか

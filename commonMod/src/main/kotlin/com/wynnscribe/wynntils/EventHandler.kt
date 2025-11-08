@@ -5,7 +5,7 @@ import com.wynnscribe.DeveloperUtils
 import com.wynnscribe.mixins.HasHoveredSlot
 import com.wynnscribe.mixins.HasHoveredSlot.Companion.hoveredSlot
 import com.wynnscribe.Translator
-import com.wynnscribe.api.API
+import com.wynnscribe.schemas.TranslationRepository
 import com.wynntils.mc.event.ItemTooltipRenderEvent
 import com.wynntils.mc.extension.ItemStackExtension
 import com.wynntils.models.items.items.game.*
@@ -20,7 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent
 class EventHandler {
     @SubscribeEvent(receiveCanceled = true, priority = EventPriority.LOW)
     fun on(event: ItemTooltipRenderEvent.Pre) {
-        if(!API.isLoaded()) { return }
+        if(!TranslationRepository.isLoaded()) { return }
         if(!Config.enabled) { return }
         DeveloperUtils.lastHoveredLore = event.tooltips
         // ItemStackのWynntilsの形式に変更

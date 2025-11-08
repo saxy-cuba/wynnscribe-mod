@@ -64,25 +64,36 @@ dependencies {
     "shadowBundle"(project(path = ":commonMod", configuration = "transformProductionFabric")) { isTransitive = false }
 }
 
-tasks.processResources {
-    inputs.property("version", project.version)
-    filesMatching("fabric.mod.json") {
-        expand(mapOf("version" to project.version))
+val supportedLanguages = listOf("ja_jp")
+
+val generateTranslationsFiles = tasks.register("generateTranslations") {
+
+    val outputDir = project.layout.buildDirectory.dir("generated-resources")
+    outputs.dir(outputDir)
+
+    doLast {
+        supportedLanguages.forEach { lang ->
+            val url = "https://storage.wynnscribe.com/${lang}.json"
+            val destination = outputDir.get().file("translations/${lang}.json").asFile
+            destination.parentFile.mkdirs()
+            logger.quiet("Downloading translations for language $lang from $url...")
+            ant.invokeMethod("get", mapOf(
+                "src" to url,
+                "dest" to destination,
+                "usetimestamp" to true
+            ))
+            logger.quiet("Downloaded translations for language $lang from $url!")
+        }
     }
 }
 
 tasks.processResources {
+    dependsOn(generateTranslationsFiles)
     inputs.property("version", project.version)
     filesMatching("fabric.mod.json") {
         expand(mapOf("version" to project.version))
     }
-}
-
-tasks.processResources {
-    inputs.property("version", project.version)
-    filesMatching("fabric.mod.json") {
-        expand(mapOf("version" to project.version))
-    }
+    from(generateTranslationsFiles.map { it.outputs })
 }
 
 tasks.shadowJar {

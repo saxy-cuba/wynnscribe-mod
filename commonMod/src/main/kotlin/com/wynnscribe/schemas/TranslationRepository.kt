@@ -116,7 +116,7 @@ data class TranslationRepository(
                 class Regexes(val matcher: String) {
                     private var placeholders = mutableMapOf<Placeholder<*>, Placeholder.Compiled<*>>()
 
-                    fun <T> placeholder(placeholder: Placeholder<T>, holders: List<Placeholder.Compiled.Holder<*>>, source: Source): Placeholder.Compiled<T> {
+                    fun <T> placeholder(placeholder: Placeholder<T>, holders: List<Placeholder.Compiled.Fragment<*>>, source: Source): Placeholder.Compiled<T> {
                         return this.placeholders.getOrPut(placeholder) { placeholder.compile(holders, source) } as Placeholder.Compiled<T>
                     }
 

@@ -26,12 +26,12 @@ sealed interface Placeholders {
         /**
          * プレースホルダーの一覧を取得します。
          */
-        fun holders(source: TranslationRepository.Translations.Category.Source, categories: List<TranslationRepository.Translations.Category>, struct: Translator.StructMode): List<Placeholder.Compiled.Holder<*>> {
+        fun holders(source: TranslationRepository.Translations.Category.Source, categories: List<TranslationRepository.Translations.Category>, struct: Translator.StructMode): List<Placeholder.Compiled.Fragment<*>> {
             val matches = TAG_PATTERN.findAll(source.properties.matcher?:return emptyList())
             val tags = matches.map { ParsedTag(it.groupValues[1].split(":", limit = 2)) }
-            val groups = mutableListOf<Placeholder.Compiled.Holder<*>>()
+            val groups = mutableListOf<Placeholder.Compiled.Fragment<*>>()
             tags.forEach { tag ->
-                groups.add(entries[tag.key]?.holder(tag, source, categories, struct = struct)?:return@forEach)
+                groups.add(entries[tag.key]?.createFragment(tag, source, categories, struct = struct)?:return@forEach)
             }
             return groups
         }
@@ -63,7 +63,7 @@ sealed interface Placeholders {
         fun on(translation: String, sourceText: String, source: TranslationRepository.Translations.Category.Source, categories: List<TranslationRepository.Translations.Category>, struct: Translator.StructMode): String {
             var translated = translation
             entries.values.forEach { placeholder ->
-                translated = placeholder.on(translated, sourceText, source, categories, struct = struct)
+                translated = placeholder.fillPlaceholders(translated, sourceText, source, categories, struct = struct)
             }
             return translated
         }
@@ -75,16 +75,16 @@ sealed interface Placeholders {
     object Re: Placeholder<Nothing> {
         override val tag: String = "re"
 
-        override fun holder(
+        override fun createFragment(
             tag: ParsedTag,
             source: TranslationRepository.Translations.Category.Source,
             categories: List<TranslationRepository.Translations.Category>,
             struct: Translator.StructMode
-        ): Placeholder.Compiled.Holder<Nothing> {
-            return Placeholder.Compiled.Holder(tag.value!!, this, null)
+        ): Placeholder.Compiled.Fragment<Nothing> {
+            return Placeholder.Compiled.Fragment(tag.value!!, this, null)
         }
 
-        override fun on(
+        override fun fillPlaceholders(
             translation: String,
             sourceText: String,
             source: TranslationRepository.Translations.Category.Source,
@@ -107,16 +107,16 @@ sealed interface Placeholders {
     object Player: Placeholder<Nothing> {
         override val tag: String = "player"
 
-        override fun holder(
+        override fun createFragment(
             tag: ParsedTag,
             source: TranslationRepository.Translations.Category.Source,
             categories: List<TranslationRepository.Translations.Category>,
             struct: Translator.StructMode
-        ): Placeholder.Compiled.Holder<Nothing> {
-            return Placeholder.Compiled.Holder(Minecraft.getInstance().user.name, this, null)
+        ): Placeholder.Compiled.Fragment<Nothing> {
+            return Placeholder.Compiled.Fragment(Minecraft.getInstance().user.name, this, null)
         }
 
-        override fun on(
+        override fun fillPlaceholders(
             translation: String,
             sourceText: String,
             source: TranslationRepository.Translations.Category.Source,
@@ -134,12 +134,12 @@ sealed interface Placeholders {
     object In: Placeholder<Translator.FilterValue> {
         override val tag: String = "in"
 
-        override fun holder(
+        override fun createFragment(
             tag: ParsedTag,
             source: TranslationRepository.Translations.Category.Source,
             categories: List<TranslationRepository.Translations.Category>,
             struct: Translator.StructMode
-        ): Placeholder.Compiled.Holder<Translator.FilterValue> {
+        ): Placeholder.Compiled.Fragment<Translator.FilterValue> {
             val project = tag.value!!
             val filterValue = Translator.FilterValue(mapOf("type" to Component.text(project)))
             // |区切りの値一覧
@@ -147,10 +147,10 @@ sealed interface Placeholders {
                 .mapNotNull {
                     it.regexes?.placeholder(_InternalCompiler) { _InternalCompiler.compile(holders(it, categories, struct = struct), it) }?.regex?.pattern
                 }.joinToString("|", transform = ::escapeGroupingRegex)
-            return Placeholder.Compiled.Holder("(${grouping})", this, filterValue)
+            return Placeholder.Compiled.Fragment("(${grouping})", this, filterValue)
         }
 
-        override fun on(
+        override fun fillPlaceholders(
             translation: String,
             sourceText: String,
             source: TranslationRepository.Translations.Category.Source,
@@ -178,17 +178,17 @@ sealed interface Placeholders {
     object _InternalCompiler: Placeholder<Nothing> {
         override val tag: String = "_internal_compiler"
 
-        override fun holder(
+        override fun createFragment(
             tag: ParsedTag,
             source: TranslationRepository.Translations.Category.Source,
             categories: List<TranslationRepository.Translations.Category>,
             struct: Translator.StructMode
-        ): Placeholder.Compiled.Holder<Nothing> {
+        ): Placeholder.Compiled.Fragment<Nothing> {
             // 使われることはないのでエラー
             throw NotImplementedError()
         }
 
-        override fun on(
+        override fun fillPlaceholders(
             translation: String,
             sourceText: String,
             source: TranslationRepository.Translations.Category.Source,
@@ -202,7 +202,7 @@ sealed interface Placeholders {
         /**
          * すべてのグループをエスケープする
          */
-        override fun compile(holders: List<Placeholder.Compiled.Holder<*>>, source: TranslationRepository.Translations.Category.Source): Placeholder.Compiled<Nothing> {
+        override fun compile(holders: List<Placeholder.Compiled.Fragment<*>>, source: TranslationRepository.Translations.Category.Source): Placeholder.Compiled<Nothing> {
             val patternStr = buildString {
                 Placeholder.TAG_PATTERN.split(source.properties.matcher?: return Placeholder.Compiled(null, emptyList())).forEachIndexed { index, str ->
                     append(escapeRegex(str))
